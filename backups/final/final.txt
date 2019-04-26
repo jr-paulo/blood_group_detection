@@ -1,0 +1,269 @@
+from _testbuffer import py_buffer_to_contiguous
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as pyplot
+
+
+def segmentation(image):
+    imb = cv2.resize(image, (960, 340))
+    imb1 = cv2.resize(image, (960, 340))
+    imb = cv2.cvtColor(imb, cv2.COLOR_RGB2GRAY)
+    cv2.imshow("rey", imb)
+    cv2.waitKey(0)
+    ret, imb = cv2.threshold(imb, 127, 255, cv2.THRESH_BINARY)
+    cv2.imshow("hi", imb)
+    cv2.waitKey(0)
+
+    kernel = np.ones((15, 15), np.uint8)
+    erosion = cv2.erode(imb, kernel, iterations=1)
+    cv2.imshow('erosion', erosion)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    # DIALATION OF IMAGE AND MORPHOLOGICAL OPENING
+    dilation = cv2.dilate(erosion, kernel, iterations=2)
+    cv2.imshow('dilation', dilation)
+    # cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    edged = cv2.Canny(dilation, 10, 250)
+    cv2.imshow("Edges", edged)
+    # cv2.waitKey(0)
+    # applying closing function
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    closed = cv2.morphologyEx(edged, cv2.MORPH_CLOSE, kernel)
+    cv2.imshow("Closed", closed)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    # finding_contours
+    count = 0
+    index = 0
+    (_, cnts, _) = cv2.findContours(closed.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    s_no = np.zeros((4))
+    o_cnts_x = np.zeros((3))
+    cnts_x = np.zeros((3))
+    o_cnts = np.zeros((3, 4))
+    contours = sorted(cnts, key=cv2.contourArea, reverse=True)
+    for c in contours:
+        if count < 3:
+            x, y, w, h = cv2.boundingRect(c)
+            cnts_x[count] = x
+        count = count + 1
+
+    o_cnts_x = sorted(cnts_x)
+    count = 0
+
+    for c in contours:
+        if count < 3:
+            x, y, w, h = cv2.boundingRect(c)
+            if o_cnts_x[0] == x:
+                o_cnts[0] = cv2.boundingRect(c)
+                s1 = imb1[y - 5:y + h + 5, x - 15:x + w + 5]
+        count = count + 1
+    count = 0
+    for c in contours:
+        if count < 3:
+            x, y, w, h = cv2.boundingRect(c)
+            x, y, w, h = cv2.boundingRect(c)
+            if o_cnts_x[1] == x:
+                o_cnts[1] = cv2.boundingRect(c)
+                s2 = imb1[y - 5:y + h + 5, x - 15:x + w + 5]
+        count = count + 1
+    count = 0
+    for c in contours:
+        if count < 3:
+            x, y, w, h = cv2.boundingRect(c)
+            if o_cnts_x[2] == x:
+                o_cnts[2] = cv2.boundingRect(c)
+                s3 = imb1[y - 5:y + h + 5, x - 15:x + w + 5]
+        count = count + 1
+    cv2.imshow('s1', s1)
+    cv2.imshow('s2', s2)
+    cv2.imshow('s3', s3)
+    cv2.waitKey(0)
+    return s1, s2, s3
+    # cv2.rectangle(dilation, (x - 15, y - 5), (x + w + 5, y + h + 5), (0, 255, 0), 2)
+
+
+
+
+def celldensity(picture):
+    picture = cv2.resize(picture, (300, 300))
+    picture = cv2.cvtColor(picture, cv2.COLOR_RGB2GRAY)
+    p = picture.shape
+    picture_white_count = 0
+    rows, cols = p
+    for i in range(rows):
+       for j in range(cols):
+          if picture[i, j] == 255:
+              picture_white_count = picture_white_count + 1
+    if (picture_white_count < 14000):
+       return 1
+    else:
+       return 0
+
+def countcluster(picture):
+   im = cv2.cvtColor(picture, cv2.COLOR_RGB2GRAY)
+   kernel = np.ones((3, 5), np.uint8)
+   im = cv2.erode(im, kernel, iterations=2)
+   # Setup SimpleBlobDetector parameters.
+   params = cv2.SimpleBlobDetector_Params()
+   # filter by area
+   params.filterByArea = True
+   params.minArea = 2
+   # filter by color
+   params.filterByColor = True
+   params.blobColor = 255
+   # Filter by Convexity
+   params.filterByConvexity = True
+   params.minConvexity = 0.001
+   # Filter by Inertia
+   params.filterByInertia = True
+   params.minInertiaRatio = .001
+
+   # Create a detector with the parameters
+   ver = (cv2.__version__).split('.')
+   if int(ver[0]) < 3:
+     detector = cv2.SimpleBlobDetector(params)
+   else:
+     detector = cv2.SimpleBlobDetector_create(params)
+   # Detect blobs.
+   keypoints = detector.detect(im)
+#dummy
+   im_with_keypoints = cv2.drawKeypoints(im, keypoints, np.array([]), (0, 0, 255),
+                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+   # Show keypoints
+   cv2.imwrite("keypoints.jpg", im_with_keypoints)
+   cv2.imshow("keypoint", im_with_keypoints)
+   cv2.waitKey(0)
+   print("Total of objects")
+   print(len(keypoints))
+# dummy
+
+   if len(keypoints) > 6:
+     return 1
+   else:
+     return 0
+
+
+def preprocessor(imb):
+    cv2.imshow('image', imb)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    # RESIZING IMAGE
+    imb = cv2.resize(imb, (960, 340))
+    cv2.imshow('resized', imb)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    # RGB TO HSV CONVERTION
+    hsv = cv2.cvtColor(imb, cv2.COLOR_RGB2HSV)
+    # V CHANNEL EXTRACTION AND BINARY IMAGE CREATION
+    h, s, v = cv2.split(hsv)
+    hsv = cv2.merge([h, s, v])
+    v = cv2.cvtColor(hsv, cv2.COLOR_RGB2GRAY)
+    cv2.imshow('gray', v)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    im_bw = cv2.threshold(v, 127, 255, cv2.THRESH_BINARY)[1]
+    # EROSION OF IMAGE
+    kernel = np.ones((2, 2), np.uint8)
+    erosion = cv2.erode(im_bw, kernel, iterations=1)
+    cv2.imshow('erosion', erosion)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    # DIALATION OF IMAGE AND MORPHOLOGICAL OPENING
+    dilation = cv2.dilate(erosion, kernel, iterations=1)
+    cv2.imshow('dilation', dilation)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    return dilation
+
+def MakeHist(im_bw):
+    # VERTICAL HISTOGRAM
+    im_arr = np.zeros((1000))
+    p = im_bw.shape
+    rows, cols = p
+    for i in range(rows):
+        for j in range(cols):
+            if im_bw[i, j] == 255:
+                im_arr[i] = im_arr[i] + 1
+    histogram = pyplot.hist([im_arr])
+    pyplot.show(histogram)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+# READ IMAGE
+imb = cv2.imread("im2.png")
+opening = preprocessor(imb)
+MakeHist(opening)
+s1,s2,s3=segmentation(imb)
+#segmanetaion code
+
+
+# im1
+''''
+s1 = cv2.imread("san1.jpg")
+s2 = cv2.imread("san2.jpg")
+s3 = cv2.imread("san3.jpg")
+'''
+# im2
+'''
+s1 = cv2.imread("sap1.jpg")
+s2 = cv2.imread("sap2.jpg")
+s3 = cv2.imread("sap3.jpg")  
+'''
+# im4
+''''
+s1 = cv2.imread("sbp1.jpg")
+s2 = cv2.imread("sbp2.jpg")
+s3 = cv2.imread("sbp3.jpg")
+'''
+
+cv2.imshow('s1', s1)
+cv2.imshow('s2', s2)
+cv2.imshow('s3', s3)
+
+s1_countcluster = countcluster(s1)
+s2_countcluster = countcluster(s2)
+s3_countcluster = countcluster(s3)
+s1_white = celldensity(s1)
+s2_white = celldensity(s2)
+s3_white = celldensity(s3)
+
+print("s1_white=", s1_white, "s2_white=", s2_white, "s3_white=", s3_white)
+print("countcluster(s1) is ", s1_countcluster)
+print("countcluster(s2) is ", s2_countcluster)
+print("countcluster(s3) is ", s3_countcluster)
+
+if s1_countcluster + s1_white == 2:
+    A = 1
+else:
+    A = 0
+if s2_countcluster + s2_white == 2:
+    B = 1
+else:
+    B = 0
+if s3_countcluster + s3_white == 2:
+    Rh = 1
+else:
+    Rh = 0
+
+blood_group = "BLOOD GROUP : "
+if A == 1:
+    blood_group = blood_group + "A "
+if B == 1:
+    blood_group = blood_group + "B "
+if A != 1 and B!=1 :
+    blood_group = blood_group + "O "
+if Rh == 1:
+    blood_group = blood_group + "Positive"
+else:
+    blood_group = blood_group + "Negative"
+
+print(blood_group)
+
+
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
